@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "mem0-project": {
+      "command": "/opt/homebrew/Caskroom/miniforge/base/envs/mem0/bin/python",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "/Users/mashiro/Mem0",
+      "env": {
+        "LITELLM_LOCAL_MODEL_COST_MAP": "True",
+        "HF_HUB_OFFLINE": "1"
+      }
+    }
+  }
+}

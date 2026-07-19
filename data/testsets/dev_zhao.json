@@ -1,0 +1,285 @@
+{
+  "user_id": "dev_zhao",
+  "messages": [
+    {
+      "role": "user",
+      "content": "我是后端工程师,主力语言是 Go"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "今天线上出了个诡异的 bug"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在看一篇讲分布式锁的文章"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "同事推荐了一本讲架构的书"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "最近在自学 Rust,想搞懂它的所有权模型"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "周会又开了两个小时"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想优化一下数据库查询"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在纠结微服务要不要拆"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "我在杭州一家做支付的公司上班"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "写单测写到怀疑人生"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "云账单这个月又超了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在研究怎么做限流"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "今天线上出了个诡异的 bug"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "在看一篇讲分布式锁的文章"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "同事推荐了一本讲架构的书"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "周会又开了两个小时"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想优化一下数据库查询"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "在纠结微服务要不要拆"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "写单测写到怀疑人生"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "云账单这个月又超了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在研究怎么做限流"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "今天线上出了个诡异的 bug"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在看一篇讲分布式锁的文章"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "同事推荐了一本讲架构的书"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "周会又开了两个小时"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "想优化一下数据库查询"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在纠结微服务要不要拆"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "写单测写到怀疑人生"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "云账单这个月又超了"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "在研究怎么做限流"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "今天线上出了个诡异的 bug"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在看一篇讲分布式锁的文章"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "同事推荐了一本讲架构的书"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "周会又开了两个小时"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想优化一下数据库查询"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    }
+  ]
+}

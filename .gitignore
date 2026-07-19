@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+.env
+qdrant_data/
+.pytest_cache/
+models/
+
+# 系统噪声
+.DS_Store
+
+# 本地工具目录
+.claude/
+
+# 运行时生成物(用户数据 / 分析产物 / 追踪状态,不入库)
+profiles/
+persona/
+project_tracking/
+project_analysis/
+code_analysis/
+data/eval_report.json

@@ -1,0 +1,9 @@
+{
+  "user_id": "bob",
+  "messages": [
+    {"role": "user", "content": "我是一名后端工程师,主力语言是 Go"},
+    {"role": "assistant", "content": "了解,你用 Go 做后端"},
+    {"role": "user", "content": "最近在读 React,前端对我是新领域"},
+    {"role": "user", "content": "我习惯早上 6 点起床跑步 5 公里"}
+  ]
+}

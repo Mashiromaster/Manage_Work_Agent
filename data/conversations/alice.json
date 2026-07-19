@@ -1,0 +1,9 @@
+{
+  "user_id": "alice",
+  "messages": [
+    {"role": "user", "content": "我最近在学做菜,尤其想学川菜"},
+    {"role": "assistant", "content": "好的,记住你在学川菜"},
+    {"role": "user", "content": "对了我不吃香菜,而且对海鲜过敏"},
+    {"role": "user", "content": "我周末一般在家,喜欢一边做饭一边听爵士乐"}
+  ]
+}

@@ -1,0 +1,285 @@
+{
+  "user_id": "runner_wang",
+  "messages": [
+    {
+      "role": "user",
+      "content": "我习惯每天早上 6 点起床跑 5 公里"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "今天配速比昨天快"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "膝盖有点不舒服"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在看马拉松的训练计划"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "我报名了今年秋天的全程马拉松"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "天气转凉适合跑步"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "补给到底吃什么好"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "跑完拉伸很重要"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "我一直穿碳板跑鞋,提速明显"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "想约人一起晨跑"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "心率一直压不下来"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "换了双新袜子"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "今天配速比昨天快"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "膝盖有点不舒服"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在看马拉松的训练计划"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "天气转凉适合跑步"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "补给到底吃什么好"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "跑完拉伸很重要"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想约人一起晨跑"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "心率一直压不下来"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "换了双新袜子"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "今天配速比昨天快"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "膝盖有点不舒服"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在看马拉松的训练计划"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "天气转凉适合跑步"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "补给到底吃什么好"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "跑完拉伸很重要"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想约人一起晨跑"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "心率一直压不下来"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "换了双新袜子"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "今天配速比昨天快"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "膝盖有点不舒服"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在看马拉松的训练计划"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "天气转凉适合跑步"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "补给到底吃什么好"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    }
+  ]
+}

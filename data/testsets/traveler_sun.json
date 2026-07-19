@@ -1,0 +1,285 @@
+{
+  "user_id": "traveler_sun",
+  "messages": [
+    {
+      "role": "user",
+      "content": "我去年自驾去了西藏,风景太震撼了"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "在做下次旅行的攻略"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "机票又涨价了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想找个小众目的地"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "我喜欢穷游,住青旅背包走"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "整理上次旅行的照片"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在学基础的当地语言"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "背包又要换新的了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "我一直想去冰岛看极光"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "青旅遇到很多有趣的人"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想拍一组旅行 vlog"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "签证办起来好麻烦"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在做下次旅行的攻略"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "机票又涨价了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想找个小众目的地"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "整理上次旅行的照片"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在学基础的当地语言"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "背包又要换新的了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "青旅遇到很多有趣的人"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想拍一组旅行 vlog"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "签证办起来好麻烦"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "在做下次旅行的攻略"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "机票又涨价了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想找个小众目的地"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "整理上次旅行的照片"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "在学基础的当地语言"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "背包又要换新的了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "青旅遇到很多有趣的人"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想拍一组旅行 vlog"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "签证办起来好麻烦"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在做下次旅行的攻略"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "机票又涨价了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想找个小众目的地"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "整理上次旅行的照片"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "在学基础的当地语言"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    }
+  ]
+}

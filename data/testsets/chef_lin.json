@@ -1,0 +1,285 @@
+{
+  "user_id": "chef_lin",
+  "messages": [
+    {
+      "role": "user",
+      "content": "我不吃香菜,而且对海鲜过敏,点菜要注意"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "今天想研究一道新菜"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "你觉得川菜和粤菜哪个更难"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "周末打算去逛菜市场"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "我最拿手的菜是红烧肉,炖得软烂入味"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "昨天试了新的调味料"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "看了个做面点的视频"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想学做甜点但总失败"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "我最近入手了一口铸铁锅,煎牛排特别香"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "高汤到底要熬多久"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "刀工怎么练才快"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "家里的调料柜又满了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "今天想研究一道新菜"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "你觉得川菜和粤菜哪个更难"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "周末打算去逛菜市场"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "昨天试了新的调味料"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "看了个做面点的视频"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "想学做甜点但总失败"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "高汤到底要熬多久"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "刀工怎么练才快"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "家里的调料柜又满了"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "今天想研究一道新菜"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "你觉得川菜和粤菜哪个更难"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "周末打算去逛菜市场"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "昨天试了新的调味料"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "看了个做面点的视频"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "想学做甜点但总失败"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "高汤到底要熬多久"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "刀工怎么练才快"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "家里的调料柜又满了"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "今天想研究一道新菜"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "你觉得川菜和粤菜哪个更难"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "周末打算去逛菜市场"
+    },
+    {
+      "role": "assistant",
+      "content": "嗯,我记住了。"
+    },
+    {
+      "role": "user",
+      "content": "昨天试了新的调味料"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    },
+    {
+      "role": "user",
+      "content": "看了个做面点的视频"
+    },
+    {
+      "role": "assistant",
+      "content": "了解~"
+    }
+  ]
+}

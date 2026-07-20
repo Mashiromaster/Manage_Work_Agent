@@ -37,7 +37,12 @@ from memory_framework.code_snapshot import (
 from memory_framework.config import DEFAULT_LLM_MODEL, build_config_and_apply_env
 from memory_framework.conversation import ingest, load_conversation
 from memory_framework.memory_store import MemoryStore
-from memory_framework.persona_store import load_persona, save_persona
+from memory_framework.persona_store import (
+    load_dim_prompt,
+    load_persona,
+    save_dim_prompt,
+    save_persona,
+)
 from memory_framework.profile_store import ProfileStore, ProjectStore
 from memory_framework.project_chat import (
     persist_project_turn,
@@ -47,7 +52,10 @@ from memory_framework.project_chat import (
 )
 from memory_framework.project_dims import PROJECT_DIMENSION_LABELS
 from memory_framework.cc_ingest import list_cc_projects
-from memory_framework.project_tracker import available_projects, import_and_track
+from memory_framework.project_tracker import (
+    available_projects,
+    track_from_dialog,
+)
 from memory_framework.repo_analyzer import (
     analyze_project_structure,
     list_analyzed_projects,
@@ -139,6 +147,14 @@ APP_CSS = """
 }
 .dark .gradio-container,
 .gradio-container.dark { background: var(--paper) !important; color: var(--ink) !important; }
+/* 兜底:即便 Gradio 在事件进行中(或收尾没清理)给输出组件加 .generating/.pending
+   遮罩,也强制 HTML 面板保持不透明、不被灰掉。 */
+.gradio-container .html-container.generating,
+.gradio-container .html-container.pending,
+.gradio-container .block.generating,
+.gradio-container .block.pending {
+    opacity: 1 !important;
+}
 /* 兜底:文字类元素统一用深墨色,不被主题变量覆盖。 */
 .gradio-container .prose,
 .gradio-container p,
@@ -224,7 +240,12 @@ APP_CSS = """
 }
 .dim-item { margin: 0 0 11px; line-height: 1.5; }
 .dim-item:last-child { margin-bottom: 0; }
-.dim-text { font-size: 0.9rem; color: var(--ink); }
+.gradio-container .dim-text,
+.gradio-container .prose .dim-text {
+    font-size: 0.9rem;
+    color: #1F2328 !important;
+    opacity: 1 !important;
+}
 .dim-meta {
     font-family: var(--font-mono);
     font-size: 0.68rem;
@@ -244,6 +265,53 @@ APP_CSS = """
     border-left: 2px solid var(--line);
 }
 .dim-empty { font-size: 0.82rem; color: var(--muted); font-style: italic; }
+
+/* 状态栏进度表 */
+.status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    margin: 4px 0 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 0.84rem;
+}
+.status-bar .sb-dot { font-size: 0.9rem; line-height: 1; color: var(--muted); }
+.status-bar .sb-label { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.status-bar .sb-detail { color: var(--muted); flex: 0 1 auto; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+.status-bar .sb-track {
+    flex: 1 1 120px;
+    height: 6px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 80px;
+}
+.status-bar .sb-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: #4A6FA5;
+    transition: width 0.3s ease;
+}
+.status-bar .sb-frac { font-family: var(--font-mono); font-size: 0.72rem;
+    color: var(--muted); white-space: nowrap; }
+/* 各阶段配色:运行=蓝,完成=绿,警告=橙,出错=红。 */
+.status-bar.sb-reading .sb-dot,
+.status-bar.sb-extracting .sb-dot,
+.status-bar.sb-merging .sb-dot { color: #4A6FA5; }
+.status-bar.sb-done { border-color: #B7D9C4; background: #F1F8F3; }
+.status-bar.sb-done .sb-dot { color: #3B7A57; }
+.status-bar.sb-done .sb-fill { background: #3B7A57; }
+.status-bar.sb-warn { border-color: #E8D3A8; background: #FBF6EA; }
+.status-bar.sb-warn .sb-dot { color: #B8862F; }
+.status-bar.sb-error { border-color: #E8C0B8; background: #FBEEEB; }
+.status-bar.sb-error .sb-dot { color: #C25A4A; }
+/* 运行中圆点脉冲动画 */
+.status-bar .sb-dot.pulsing { animation: sb-pulse 1.1s ease-in-out infinite; }
+@keyframes sb-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 /* 记忆 / 画像 列表卡片 */
 .panel-card {
@@ -386,7 +454,43 @@ def _render_project(project_id: str, note: str = "") -> str:
             f"<div class='dim-grid'>{''.join(cards)}</div>{note_html}")
 
 
-def _render_analysis(name: str) -> str:
+# 状态栏各阶段的展示配置:(圆点/图标, 文案, 是否 pulsing 动画)。
+_STATUS_STAGES = {
+    "idle":       ("○", "空闲", False),
+    "reading":    ("◐", "读取对话原文", True),
+    "extracting": ("◑", "分段提炼", True),
+    "merging":    ("◕", "跨段汇总去重", True),
+    "done":       ("●", "完成", False),
+    "warn":       ("▲", "提炼为空", False),
+    "error":      ("✕", "出错", False),
+}
+
+
+def _status_bar(stage: str, cur: int = 0, total: int = 0, detail: str = "") -> str:
+    """渲染进度追踪状态栏(HTML)。stage 见 _STATUS_STAGES;有 cur/total 时画进度条。"""
+    icon, label, pulsing = _STATUS_STAGES.get(stage, _STATUS_STAGES["idle"])
+    pct = 0
+    if total > 0:
+        pct = max(0, min(100, round(cur / total * 100)))
+    running = stage in ("reading", "extracting", "merging")
+    # 进度条:提炼/汇总阶段按段数显示百分比;完成=100%;空闲/出错不显示条。
+    if stage == "done":
+        pct = 100
+    show_bar = running or stage == "done"
+    bar_html = ""
+    if show_bar:
+        frac = f"{cur}/{total}" if total > 0 else ""
+        bar_html = (
+            f"<div class='sb-track'><div class='sb-fill' style='width:{pct}%'></div></div>"
+            f"<span class='sb-frac'>{frac} {pct}%</span>" if total > 0 else
+            f"<div class='sb-track'><div class='sb-fill' style='width:{pct}%'></div></div>")
+    dot_cls = "sb-dot pulsing" if pulsing else "sb-dot"
+    detail_html = f"<span class='sb-detail'>{_esc(detail)}</span>" if detail else ""
+    return (f"<div class='status-bar sb-{stage}'>"
+            f"<span class='{dot_cls}'>{icon}</span>"
+            f"<span class='sb-label'>{_esc(label)}</span>"
+            f"{detail_html}{bar_html}"
+            f"</div>")
     """读取某项目已保存的结构分析 md;无则给提示(返回 markdown 文本)。"""
     if not name:
         return "_(输入项目目录路径后点「分析 / 更新」,或从下拉选择已分析的项目)_"
@@ -563,38 +667,111 @@ def on_delete_memory(user_id: str, mem_id: str):
             "_✅ 已删除该条记忆。_")
 
 
-def on_import_project(project_id: str):
-    """导入并分析某项目的 CC 对话日志(生成器,两段式)。
+def on_import_project(project_id: str, full_rerun: bool = False):
+    """从对话原文直接提炼四维并写入(生成器,两段式,不经 mem0)。
 
-    第一次 yield 提示分析中;随后跑 import_and_track(解析日志→灌记忆→LLM 提炼
-    四维度,较慢),第二次 yield 刷新四维面板。
+    第一次 yield 提示分析中;随后跑 track_from_dialog(读会话原文→单次/分段 LLM→
+    按四维写入),第二次 yield 刷新四维面板。full_rerun=True 时忽略增量游标、
+    从全部对话重提(用于干净重来)。
     """
     if not project_id:
-        yield "<div class='panel-card'><p class='dim-empty'>请先在下拉框选择一个项目</p></div>"
+        empty = "<div class='panel-card'><p class='dim-empty'>请先在顶部选择一个项目</p></div>"
+        yield _status_bar("idle"), empty
         return
     pid = project_id.strip()
+    mode = "全量重跑" if full_rerun else "增量"
+    # 首帧:进入「读对话」态(纯读渲染,短暂持锁即可)。
     with _WRITE_LOCK:
-        analyzing = _render_project(pid, note="⟳ 正在解析对话日志并提炼四维度,请稍候…")
-    yield analyzing
+        panel = _render_project(pid)
+    yield _status_bar("reading", detail=f"{mode} · 读取 {pid} 的对话原文…"), panel
 
-    with _WRITE_LOCK:
-        result = import_and_track(get_store(), get_project_store(), pid, MODEL)
-        n = result["new_messages"]
-        status = result.get("status")
-        if status == "llm_empty":
-            note = (f"⚠️ 已导入 {n} 条消息,但四维度提炼未返回结果(通常是 LLM 限流/"
-                    f"网络问题,已自动重试仍失败),暂保留旧记录。请稍后再点「导入并分析」重试。"
-                    if n else
-                    "⚠️ 四维度提炼未返回结果(通常是 LLM 限流/网络问题,已自动重试仍失败),"
-                    "暂保留旧记录。请稍后重试。")
-        elif status == "no_memories":
-            note = "ℹ️ 该项目暂无可提炼的记忆(对话日志可能为空或已被过滤)。"
-        elif n:
-            note = f"✅ 本次新导入 {n} 条消息并已刷新四维度。"
+    # 分段进度:track_from_dialog 在后台线程跑,progress_cb 把 (当前段, 总段数, 阶段)
+    # 推入队列;本生成器轮询队列、每段刷新状态栏。**提炼期间不持 _WRITE_LOCK**——
+    # 只把锁传进 track_from_dialog,在写盘瞬间加锁。否则整段提炼独占锁会冻结所有 UI 事件。
+    import queue as _queue
+    import threading
+
+    progress_q: "_queue.Queue" = _queue.Queue()
+    box = {}
+
+    def _on_progress(cur, total, phase="chunk"):
+        progress_q.put((cur, total, phase))
+
+    def _run():
+        try:
+            box["result"] = track_from_dialog(
+                get_project_store(), pid, load_dim_prompt(),
+                model=MODEL, incremental=not full_rerun,
+                progress_cb=_on_progress, write_lock=_WRITE_LOCK)
+        except Exception as exc:  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            box["error"] = str(exc)
+        finally:
+            progress_q.put(None)  # 结束哨兵
+
+    worker = threading.Thread(target=_run, daemon=True)
+    worker.start()
+    last_progress = None
+    while True:
+        item = progress_q.get()
+        if item is None:
+            break
+        cur, total, phase = item
+        last_progress = (cur, total)
+        if phase == "merge":
+            yield (_status_bar("merging", cur=total, total=total,
+                               detail=f"已提炼 {total} 段,跨段汇总去重(合并零散 / 移除已解决项)…"),
+                   gr.update())
         else:
-            note = "✅ 无新增消息(增量游标生效),已按现有记忆刷新四维度。"
+            detail = (f"{mode} · 正在提炼第 {cur}/{total} 段(每段一次 LLM)…"
+                      if total > 1 else f"{mode} · 正在提炼(单段一次 LLM)…")
+            yield _status_bar("extracting", cur=cur, total=total, detail=detail), gr.update()
+    worker.join()
+
+    if "error" in box:
+        yield (_status_bar("error", detail=str(box["error"])),
+               _render_project(pid, note=f"❌ 分析出错:{_esc(box['error'])}(详见终端日志)"))
+        return
+    result = box["result"]
+    n = result["new_messages"]
+    status = result.get("status")
+    if status == "llm_empty":
+        note = (f"⚠️ 已读取 {n} 条消息,但四维提炼未返回结果(通常是 LLM 限流/网络,"
+                f"已自动重试仍失败),暂保留旧记录。请稍后重试。")
+        bar = _status_bar("warn", detail=f"读取 {n} 条,提炼空(限流/网络),保留旧记录")
+    elif status == "no_messages":
+        note = "ℹ️ 无新增对话(增量游标生效)。想重提可勾选「全量重跑」。"
+        bar = _status_bar("done", detail="无新增对话(增量游标生效)")
+    elif status == "not_found":
+        note = "❌ 未找到该项目的对话日志(~/.claude/projects 下无对应会话)。"
+        bar = _status_bar("error", detail="未找到该项目的对话日志")
+    else:
+        seg = f",分 {last_progress[1]} 段" if last_progress and last_progress[1] > 1 else ""
+        note = f"✅ 已从 {n} 条对话消息{mode}提炼四维度{seg}并刷新。"
+        bar = _status_bar("done", detail=f"完成 · {n} 条消息{seg} · {mode}")
+    with _WRITE_LOCK:
         panel = _render_project(pid, note=note)
-    yield panel
+    yield bar, panel
+
+
+def on_save_dim_prompt(text: str) -> str:
+    """保存四维提取系统提示词(空=恢复默认),返回状态提示。"""
+    with _WRITE_LOCK:
+        path = save_dim_prompt(text or "")
+    if path == "(默认)":
+        return "_✅ 已恢复默认四维提示词。_"
+    return "_✅ 已保存自定义四维提示词,下次「导入并分析」将用它提取。_"
+
+
+def on_reset_dim_prompt():
+    """恢复默认四维提示词,返回 (提示词文本, 状态)。"""
+    with _WRITE_LOCK:
+        save_dim_prompt("")
+        default = load_dim_prompt()
+    return default, "_✅ 已恢复默认四维提示词。_"
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -807,8 +984,9 @@ _FORCE_LIGHT_JS = """
 
 
 def build_ui() -> gr.Blocks:
-    with gr.Blocks(title="Mem0 长期记忆 · 项目进度追踪",
-                   theme=gr.themes.Soft(), css=APP_CSS, js=_FORCE_LIGHT_JS) as demo:
+    # Gradio 6.0:theme/css/js 从 Blocks 构造器移到了 launch();在此传会被静默忽略
+    # (导致 CSS 不生效——文字发灰/面板半透明等)。故仅在 __main__ 的 launch() 里传。
+    with gr.Blocks(title="Mem0 长期记忆 · 项目进度追踪") as demo:
         gr.HTML("<div class='app-header'>"
                 "<h2 style='margin:0'>Mem0 长期记忆 · 项目进度追踪</h2>"
                 "<div class='app-sub'>Memory & project progress from your Claude Code conversations</div>"
@@ -840,6 +1018,17 @@ def build_ui() -> gr.Blocks:
                         inject_toggle = gr.Checkbox(label="注入人设与记忆", value=True)
                         persona_save_btn = gr.Button("保存人设", variant="primary")
                 persona_note = gr.Markdown("")
+                with gr.Accordion("⚙️ 进度追踪 · 四维提取系统提示词(高级)", open=False):
+                    gr.Markdown("这段提示词决定「项目进度追踪」如何从对话原文提炼"
+                                "进度/问题/待办/决策四维。可自定义;留空保存=恢复默认。")
+                    dim_prompt_box = gr.Textbox(label="四维提取提示词", lines=10,
+                                                value=load_dim_prompt())
+                    with gr.Row():
+                        dim_save_btn = gr.Button("保存提示词", variant="primary", scale=1)
+                        dim_reset_btn = gr.Button("恢复默认", scale=1)
+                    dim_note = gr.Markdown("")
+                    dim_save_btn.click(on_save_dim_prompt, dim_prompt_box, dim_note)
+                    dim_reset_btn.click(on_reset_dim_prompt, None, [dim_prompt_box, dim_note])
                 with gr.Row():
                     with gr.Column(scale=3):
                         chatbot = gr.Chatbot(label="对话", height=440)
@@ -879,12 +1068,16 @@ def build_ui() -> gr.Blocks:
                                   [mem_view, mem_select, mem_edit, mem_note])
 
             with gr.Tab("📊 项目进度追踪"):
-                gr.Markdown("从你与 Claude Code 的对话日志(`~/.claude/projects`)中,"
-                            "沉淀**当前项目**的**进度 / 问题 / 待办 / 决策**。"
-                            "项目在顶部全局选择;支持增量重跑,再次导入只处理新增对话。")
+                gr.Markdown("直接从你与 Claude Code 的对话**原文**(`~/.claude/projects`)"
+                            "提炼**当前项目**的**进度 / 问题 / 待办 / 决策**——单次 LLM、"
+                            "不经 mem0,更准更全。项目在顶部全局选择;提取用的系统提示词可在"
+                            "「记忆聊天 · 个性定制」页编辑。增量只处理新对话;勾「全量重跑」从头重提。")
                 with gr.Row():
+                    proj_full_rerun = gr.Checkbox(label="全量重跑(忽略增量,从全部对话重提)",
+                                                  value=False, scale=2)
                     import_btn = gr.Button("导入并分析当前项目", variant="primary", scale=1)
                     proj_refresh = gr.Button("刷新展示", scale=1)
+                proj_status = gr.HTML(_status_bar("idle"))
                 proj_view = gr.HTML(
                     "<div class='panel-card'><p class='dim-empty'>"
                     "在顶部选择项目后点「导入并分析当前项目」</p></div>")
@@ -893,8 +1086,10 @@ def build_ui() -> gr.Blocks:
                     with _WRITE_LOCK:
                         return _render_project(pid)
 
-                import_btn.click(on_import_project, g_project, proj_view)
-                proj_refresh.click(_refresh_project, g_project, proj_view)
+                import_btn.click(on_import_project, [g_project, proj_full_rerun],
+                                 [proj_status, proj_view], show_progress="hidden")
+                proj_refresh.click(_refresh_project, g_project, proj_view,
+                                   show_progress="hidden")
 
             with gr.Tab("🗂 项目结构分析"):
                 gr.Markdown("扫描**当前项目目录**结构并让 LLM 归纳出"
@@ -933,15 +1128,23 @@ def build_ui() -> gr.Blocks:
                 wb_export_btn.click(on_export_skill, g_project, wb_export_note)
 
         # 全局项目切换 → 同步刷新进度/结构/工作台三视图 + 回填路径。
+        # 纯读事件用 show_progress="hidden":不给面板盖 spinner/半透明遮罩
+        #(否则某些 Gradio 版本收尾不清除,面板会一直淡出灰掉)。
         _switch_outputs = [g_path, proj_view, analysis_view, wb_code_view]
-        g_project.change(on_switch_project, g_project, _switch_outputs)
-        g_refresh.click(lambda: gr.update(choices=_all_projects()), None, g_project)
+        g_project.change(on_switch_project, g_project, _switch_outputs,
+                         show_progress="hidden")
+        g_refresh.click(lambda: gr.update(choices=_all_projects()), None, g_project,
+                        show_progress="hidden")
 
-        # 打开界面:初始化全局选择器 + 路径 + 三视图。
+        # 打开界面:初始化全局选择器 + 路径 + 三视图(纯读,不显示遮罩)。
         demo.load(_load_on_open, None,
-                  [g_project, g_path, proj_view, analysis_view, wb_code_view])
+                  [g_project, g_path, proj_view, analysis_view, wb_code_view],
+                  show_progress="hidden")
     return demo
 
 
 if __name__ == "__main__":
-    build_ui().launch(server_name="127.0.0.1", server_port=7860, inbrowser=False)
+    # 注意:不传 js=。Gradio 6 里 launch(js=) 是页面加载钩子,曾导致前端事件绑定
+    # 失效(按钮点击不发请求)。强制浅色已由 CSS(.dark 变量覆盖)完成,JS 冗余。
+    build_ui().launch(server_name="127.0.0.1", server_port=7860, inbrowser=False,
+                      theme=gr.themes.Soft(), css=APP_CSS)

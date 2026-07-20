@@ -6,8 +6,11 @@ import pytest
 
 import memory_framework.persona_store as ps
 from memory_framework.persona_store import (
+    DEFAULT_DIM_PROMPT,
     list_persona_users,
+    load_dim_prompt,
     load_persona,
+    save_dim_prompt,
     save_persona,
 )
 
@@ -48,3 +51,26 @@ def test_list_users():
 def test_safe_name_slash():
     save_persona("a/b", "x")
     assert load_persona("a/b")["persona"] == "x"  # 归一化后可回读
+
+
+def test_dim_prompt_default_when_missing():
+    assert load_dim_prompt() == DEFAULT_DIM_PROMPT
+
+
+def test_dim_prompt_save_load():
+    save_dim_prompt("我的自定义四维提示词")
+    assert load_dim_prompt() == "我的自定义四维提示词"
+
+
+def test_dim_prompt_empty_restores_default():
+    save_dim_prompt("自定义")
+    assert load_dim_prompt() == "自定义"
+    save_dim_prompt("")  # 空 → 恢复默认
+    assert load_dim_prompt() == DEFAULT_DIM_PROMPT
+
+
+def test_dim_prompt_file_not_listed_as_user():
+    save_dim_prompt("x")
+    save_persona("alice", "hi")
+    assert "_dim_prompt" not in list_persona_users()
+    assert "alice" in list_persona_users()

@@ -16,8 +16,12 @@ from memory_framework.cc_ingest import (
     collect_new_messages,
     find_project,
     list_cc_projects,
+    load_cursor,
+    parse_cc_session,
+    save_cursor,
 )
 from memory_framework.config import DEFAULT_LLM_MODEL
+from memory_framework.dialog_extractor import extract_dims_from_messages
 from memory_framework.project_extractor import synthesize_project_dims
 
 
@@ -124,6 +128,104 @@ def import_and_track(store, project_store, project_id: str, model: str = None) -
     profile, status = refresh_project(store, project_store, project_id, model=model)
     return {"project_id": project_id, "new_messages": len(new_msgs),
             "profile": profile, "status": status}
+
+
+def _read_project_messages(project: dict) -> list:
+    """读某项目全部会话的原文消息(不去重),用于全量重跑。"""
+    msgs = []
+    for sess_path in project.get("sessions", []):
+        msgs.extend(parse_cc_session(sess_path))
+    return msgs
+
+
+def track_from_dialog(project_store, project_id: str, dim_prompt: str,
+                      model: str = None, incremental: bool = True,
+                      progress_cb=None, write_lock=None) -> dict:
+    """从对话**原文**直接提炼四维并写入(不经 mem0)。
+
+    这是 :func:`import_and_track`(mem0 链路)的替代:让 LLM 读会话原文一次性提炼,
+    无损、更准。增量模式只喂游标之后的新消息、与旧四维合并;全量模式读全部对话、
+    直接替换。
+
+    Args:
+        project_store: ProjectStore。
+        project_id: 项目 id(目录 basename)。
+        dim_prompt: 四维提取系统提示词(persona_store.load_dim_prompt())。
+        model: litellm 模型名。
+        incremental: True 只处理新消息并合并;False 读全部对话重提、直接替换。
+        progress_cb: 可选回调 ``fn(current, total)``,提炼时每段调用一次,供分段进度显示。
+        write_lock: 可选上下文管理器(如 threading.Lock)。仅在**写盘瞬间**加锁,
+            LLM 提炼期间**不持锁**——避免长时间独占,冻结其他 UI 事件。
+
+    Returns:
+        ``{"project_id","new_messages","status","profile"}``;
+        status ∈ ok / no_messages / llm_empty / not_found。
+    """
+    import contextlib
+    model = model or os.getenv("MEM0_LLM_MODEL", DEFAULT_LLM_MODEL)
+    project = find_project(project_id)
+    if project is None:
+        return {"project_id": project_id, "new_messages": 0,
+                "status": "not_found",
+                "profile": project_store.get_project(project_id)}
+
+    cpath = _cursor_path(project_store)
+
+    if incremental:
+        all_cursor = load_cursor(cpath)
+        cursor = all_cursor.get(project_id, {})
+        msgs, updated_cursor = collect_new_messages(project, cursor)
+    else:
+        msgs = _read_project_messages(project)
+        updated_cursor = None  # 全量重跑后重建游标(标记全部已处理)
+
+    if not msgs:
+        return {"project_id": project_id, "new_messages": 0,
+                "status": "no_messages",
+                "profile": project_store.get_project(project_id)}
+
+    existing = project_store.get_project(project_id)
+    existing_items = [it.to_dict() for it in existing.items] if incremental else None
+
+    fresh = extract_dims_from_messages(
+        msgs, dim_prompt, existing_items=existing_items, model=model,
+        progress_cb=progress_cb)
+
+    if not fresh:
+        # 提炼空(限流/解析失败):不覆盖旧记录,如实回报。
+        return {"project_id": project_id, "new_messages": len(msgs),
+                "status": "llm_empty",
+                "profile": project_store.get_project(project_id)}
+
+    if incremental:
+        # 与旧四维合并去重(旧条目 LLM 已在 prompt 里见过,fresh 已含合并结果;
+        # 这里再兜底并入旧条目里 fresh 未覆盖的,避免丢历史)。
+        merged = {(it["dimension"], _norm(it["text"])): it for it in (existing_items or [])}
+        for it in fresh:
+            merged[(it.get("dimension"), _norm(it.get("text", "")))] = it
+        items_data = list(merged.values())
+    else:
+        items_data = fresh
+
+    # 仅写盘瞬间加锁;LLM 提炼(上面 extract_dims_from_messages)已在锁外完成。
+    lock_ctx = write_lock if write_lock is not None else contextlib.nullcontext()
+    with lock_ctx:
+        project_store.replace_profile(project_id, items_data)
+
+        # 全量重跑:重建游标,把全部会话标记为已处理(下次增量从这里接续)。
+        if not incremental:
+            _, updated_cursor = collect_new_messages(project, {})
+        all_cursor = load_cursor(cpath)
+        all_cursor[project_id] = updated_cursor
+        save_cursor(cpath, all_cursor)
+        profile = project_store.get_project(project_id)
+
+    return {"project_id": project_id, "new_messages": len(msgs),
+            "status": "ok", "profile": profile}
+
+
+def _norm(text: str) -> str:
+    return "".join((text or "").split()).strip("。,.!?;:")
 
 
 def available_projects() -> list[str]:

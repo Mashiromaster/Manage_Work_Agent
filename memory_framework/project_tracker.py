@@ -130,17 +130,39 @@ def import_and_track(store, project_store, project_id: str, model: str = None) -
             "profile": profile, "status": status}
 
 
-def _read_project_messages(project: dict) -> list:
-    """读某项目全部会话的原文消息(不去重),用于全量重跑。"""
+def _read_project_messages(project: dict, max_mb: float = 0) -> list:
+    """读某项目全部会话的原文消息(不去重),用于全量重跑。
+
+    ``max_mb > 0`` 时只读**最近**的会话文件(按 mtime 新→旧),累计文件字节数到
+    该上限为止;至少读入最近的一个文件(即便它已超上限)。0 表示读全部。
+    读取顺序回归时间正序,让 LLM 按对话发生的先后看到内容。
+    """
+    sessions = list(project.get("sessions", []))
+    if max_mb and max_mb > 0:
+        limit = max_mb * 1024 * 1024
+        by_recent = sorted(
+            sessions,
+            key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0,
+            reverse=True,
+        )
+        picked, acc = [], 0
+        for p in by_recent:
+            size = os.path.getsize(p) if os.path.exists(p) else 0
+            if picked and acc + size > limit:
+                break
+            picked.append(p)
+            acc += size
+        sessions = sorted(picked, key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0)
     msgs = []
-    for sess_path in project.get("sessions", []):
+    for sess_path in sessions:
         msgs.extend(parse_cc_session(sess_path))
     return msgs
 
 
 def track_from_dialog(project_store, project_id: str, dim_prompt: str,
                       model: str = None, incremental: bool = True,
-                      progress_cb=None, write_lock=None) -> dict:
+                      progress_cb=None, write_lock=None,
+                      max_mb: float = 0) -> dict:
     """从对话**原文**直接提炼四维并写入(不经 mem0)。
 
     这是 :func:`import_and_track`(mem0 链路)的替代:让 LLM 读会话原文一次性提炼,
@@ -156,6 +178,8 @@ def track_from_dialog(project_store, project_id: str, dim_prompt: str,
         progress_cb: 可选回调 ``fn(current, total)``,提炼时每段调用一次,供分段进度显示。
         write_lock: 可选上下文管理器(如 threading.Lock)。仅在**写盘瞬间**加锁,
             LLM 提炼期间**不持锁**——避免长时间独占,冻结其他 UI 事件。
+        max_mb: 仅全量重跑(incremental=False)生效:只读最近的会话文件累计到该
+            MB 上限,0 表示读全部。增量模式忽略此参数(按游标只取新消息)。
 
     Returns:
         ``{"project_id","new_messages","status","profile"}``;
@@ -176,7 +200,7 @@ def track_from_dialog(project_store, project_id: str, dim_prompt: str,
         cursor = all_cursor.get(project_id, {})
         msgs, updated_cursor = collect_new_messages(project, cursor)
     else:
-        msgs = _read_project_messages(project)
+        msgs = _read_project_messages(project, max_mb=max_mb)
         updated_cursor = None  # 全量重跑后重建游标(标记全部已处理)
 
     if not msgs:
@@ -185,10 +209,12 @@ def track_from_dialog(project_store, project_id: str, dim_prompt: str,
                 "profile": project_store.get_project(project_id)}
 
     existing = project_store.get_project(project_id)
-    existing_items = [it.to_dict() for it in existing.items] if incremental else None
+    existing_items = [it.to_dict() for it in existing.items]
 
+    # 提炼上下文:增量把全量旧条目喂给 LLM(让它见过历史);全量不喂。
+    extract_existing = existing_items if incremental else None
     fresh = extract_dims_from_messages(
-        msgs, dim_prompt, existing_items=existing_items, model=model,
+        msgs, dim_prompt, existing_items=extract_existing, model=model,
         progress_cb=progress_cb)
 
     if not fresh:
@@ -197,15 +223,27 @@ def track_from_dialog(project_store, project_id: str, dim_prompt: str,
                 "status": "llm_empty",
                 "profile": project_store.get_project(project_id)}
 
+    # 锁定条目 + 手动条目:两条路径都原样保留,LLM 结果不得覆盖。
+    preserved = [it for it in existing_items
+                 if it.get("locked") or it.get("source") == "manual"]
+    preserved_keys = {(it["dimension"], _norm(it["text"])) for it in preserved}
+    fresh = [it for it in fresh
+             if (it.get("dimension"), _norm(it.get("text", ""))) not in preserved_keys]
+
     if incremental:
-        # 与旧四维合并去重(旧条目 LLM 已在 prompt 里见过,fresh 已含合并结果;
-        # 这里再兜底并入旧条目里 fresh 未覆盖的,避免丢历史)。
-        merged = {(it["dimension"], _norm(it["text"])): it for it in (existing_items or [])}
+        # 旧的“未保留(未锁定的 llm)”条目:fresh 触及的维度里旧条目被本轮提炼替换,
+        # fresh 未触及的维度保留旧条目(避免丢历史);preserved 始终保留。
+        fresh_dims = {it.get("dimension") for it in fresh}
+        kept_old = {(it["dimension"], _norm(it["text"])): it
+                    for it in existing_items
+                    if (it["dimension"], _norm(it["text"])) not in preserved_keys
+                    and it["dimension"] not in fresh_dims}
         for it in fresh:
-            merged[(it.get("dimension"), _norm(it.get("text", "")))] = it
-        items_data = list(merged.values())
+            kept_old[(it.get("dimension"), _norm(it.get("text", "")))] = it
+        items_data = preserved + list(kept_old.values())
     else:
-        items_data = fresh
+        # 全量重跑:丢弃旧的未保留条目,但 preserved 保留。
+        items_data = preserved + fresh
 
     # 仅写盘瞬间加锁;LLM 提炼(上面 extract_dims_from_messages)已在锁外完成。
     lock_ctx = write_lock if write_lock is not None else contextlib.nullcontext()

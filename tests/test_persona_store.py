@@ -74,3 +74,12 @@ def test_dim_prompt_file_not_listed_as_user():
     save_persona("alice", "hi")
     assert "_dim_prompt" not in list_persona_users()
     assert "alice" in list_persona_users()
+
+
+def test_default_dim_prompt_focuses_on_features():
+    from memory_framework.persona_store import DEFAULT_DIM_PROMPT, DIM_MERGE_PROMPT
+    # 聚焦到功能级/关键,明确不记琐碎修复
+    assert "琐碎" in DEFAULT_DIM_PROMPT
+    assert "功能" in DEFAULT_DIM_PROMPT
+    assert "12" in DEFAULT_DIM_PROMPT and "20" in DEFAULT_DIM_PROMPT
+    assert "12" in DIM_MERGE_PROMPT and "20" in DIM_MERGE_PROMPT

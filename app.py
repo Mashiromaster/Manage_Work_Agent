@@ -417,41 +417,12 @@ def _memory_text_by_id(user_id: str, mem_id: str) -> str:
     return ""
 
 
-def _render_project(project_id: str, note: str = "") -> str:
+def _project_items(project_id: str) -> list[dict]:
+    """读某项目全部四维条目为 dict 列表(供 @gr.render 与 state 用)。"""
     if not project_id or not project_id.strip():
-        return "<div class='panel-card'><p class='dim-empty'>请先选择一个项目</p></div>"
-    pid = project_id.strip()
-    prof = get_project_store().get_project(pid)
-    grouped = {}
-    for it in prof.items:
-        grouped.setdefault(it.dimension, []).append(it)
-
-    cards = []
-    for dim, label in PROJECT_DIMENSION_LABELS.items():
-        accent, soft = _DIM_COLORS[dim]
-        items = grouped.get(dim, [])
-        if not items:
-            body = "<p class='dim-empty'>暂无</p>"
-        else:
-            rows = []
-            for it in items:
-                src = (f"<span class='dim-src'>来源: {_esc(it.evidence)}</span>"
-                       if it.evidence else "")
-                rows.append(f"<div class='dim-item'><span class='dim-text'>{_esc(it.text)}</span>"
-                            f"<span class='dim-meta'>{it.importance:.0f}</span>{src}</div>")
-            body = "".join(rows)
-        cards.append(
-            f"<div class='dim-card' style='--dim-accent:{accent};--dim-soft:{soft}'>"
-            f"<div class='dim-head'>"
-            f"<span class='dim-badge'>{_DIM_BADGE[dim]}</span>"
-            f"<span class='dim-label'>{_esc(label)}</span>"
-            f"<span class='dim-count'>{len(items)}</span>"
-            f"</div>{body}</div>"
-        )
-    note_html = f"<p class='status-note'>{_esc(note)}</p>" if note else ""
-    return (f"<div class='panel-card' style='margin-bottom:14px;border:none;padding:0'>"
-            f"<p class='panel-title'>{_esc(pid)} · 进度追踪</p></div>"
-            f"<div class='dim-grid'>{''.join(cards)}</div>{note_html}")
+        return []
+    prof = get_project_store().get_project(project_id.strip())
+    return [it.to_dict() for it in prof.items]
 
 
 # 状态栏各阶段的展示配置:(圆点/图标, 文案, 是否 pulsing 动画)。
@@ -491,6 +462,9 @@ def _status_bar(stage: str, cur: int = 0, total: int = 0, detail: str = "") -> s
             f"<span class='sb-label'>{_esc(label)}</span>"
             f"{detail_html}{bar_html}"
             f"</div>")
+
+
+def _render_analysis(name: str) -> str:
     """读取某项目已保存的结构分析 md;无则给提示(返回 markdown 文本)。"""
     if not name:
         return "_(输入项目目录路径后点「分析 / 更新」,或从下拉选择已分析的项目)_"
@@ -667,7 +641,7 @@ def on_delete_memory(user_id: str, mem_id: str):
             "_✅ 已删除该条记忆。_")
 
 
-def on_import_project(project_id: str, full_rerun: bool = False):
+def on_import_project(project_id: str, full_rerun: bool = False, max_mb: float = 0):
     """从对话原文直接提炼四维并写入(生成器,两段式,不经 mem0)。
 
     第一次 yield 提示分析中;随后跑 track_from_dialog(读会话原文→单次/分段 LLM→
@@ -675,15 +649,15 @@ def on_import_project(project_id: str, full_rerun: bool = False):
     从全部对话重提(用于干净重来)。
     """
     if not project_id:
-        empty = "<div class='panel-card'><p class='dim-empty'>请先在顶部选择一个项目</p></div>"
-        yield _status_bar("idle"), empty
+        yield _status_bar("idle"), []
         return
     pid = project_id.strip()
     mode = "全量重跑" if full_rerun else "增量"
-    # 首帧:进入「读对话」态(纯读渲染,短暂持锁即可)。
-    with _WRITE_LOCK:
-        panel = _render_project(pid)
-    yield _status_bar("reading", detail=f"{mode} · 读取 {pid} 的对话原文…"), panel
+    mb = max_mb if full_rerun else 0
+    if mb:
+        mode = f"{mode}(最近 {mb:.0f}MB)"
+    # 首帧:进入「读对话」态(纯读,直接读当前四维条目)。
+    yield _status_bar("reading", detail=f"{mode} · 读取 {pid} 的对话原文…"), _project_items(pid)
 
     # 分段进度:track_from_dialog 在后台线程跑,progress_cb 把 (当前段, 总段数, 阶段)
     # 推入队列;本生成器轮询队列、每段刷新状态栏。**提炼期间不持 _WRITE_LOCK**——
@@ -702,7 +676,8 @@ def on_import_project(project_id: str, full_rerun: bool = False):
             box["result"] = track_from_dialog(
                 get_project_store(), pid, load_dim_prompt(),
                 model=MODEL, incremental=not full_rerun,
-                progress_cb=_on_progress, write_lock=_WRITE_LOCK)
+                progress_cb=_on_progress, write_lock=_WRITE_LOCK,
+                max_mb=mb)
         except Exception as exc:  # noqa: BLE001
             import traceback
             traceback.print_exc()
@@ -731,7 +706,7 @@ def on_import_project(project_id: str, full_rerun: bool = False):
 
     if "error" in box:
         yield (_status_bar("error", detail=str(box["error"])),
-               _render_project(pid, note=f"❌ 分析出错:{_esc(box['error'])}(详见终端日志)"))
+               _project_items(pid))
         return
     result = box["result"]
     n = result["new_messages"]
@@ -739,20 +714,18 @@ def on_import_project(project_id: str, full_rerun: bool = False):
     if status == "llm_empty":
         note = (f"⚠️ 已读取 {n} 条消息,但四维提炼未返回结果(通常是 LLM 限流/网络,"
                 f"已自动重试仍失败),暂保留旧记录。请稍后重试。")
-        bar = _status_bar("warn", detail=f"读取 {n} 条,提炼空(限流/网络),保留旧记录")
+        bar = _status_bar("warn", detail=note)
     elif status == "no_messages":
         note = "ℹ️ 无新增对话(增量游标生效)。想重提可勾选「全量重跑」。"
-        bar = _status_bar("done", detail="无新增对话(增量游标生效)")
+        bar = _status_bar("done", detail=note)
     elif status == "not_found":
         note = "❌ 未找到该项目的对话日志(~/.claude/projects 下无对应会话)。"
-        bar = _status_bar("error", detail="未找到该项目的对话日志")
+        bar = _status_bar("error", detail=note)
     else:
         seg = f",分 {last_progress[1]} 段" if last_progress and last_progress[1] > 1 else ""
         note = f"✅ 已从 {n} 条对话消息{mode}提炼四维度{seg}并刷新。"
-        bar = _status_bar("done", detail=f"完成 · {n} 条消息{seg} · {mode}")
-    with _WRITE_LOCK:
-        panel = _render_project(pid, note=note)
-    yield bar, panel
+        bar = _status_bar("done", detail=note)
+    yield bar, _project_items(pid)
 
 
 def on_save_dim_prompt(text: str) -> str:
@@ -809,18 +782,16 @@ def on_switch_project(pid: str):
     """全局项目切换:回填路径 + 同步刷新进度四维 / 结构分析 / 代码分析三视图。
 
     纯读(渲染盘上产物 + 进度 store 文件读),不触发 LLM/落盘,响应快。
-    输出顺序:(g_path, proj_view, analysis_view, wb_code_view)。
+    输出顺序:(g_path, proj_items_state, analysis_view, wb_code_view)。
     """
     name = (pid or "").strip()
     if not name:
-        empty = "<div class='panel-card'><p class='dim-empty'>请先在上方选择一个项目</p></div>"
-        return "", empty, "_(请选择项目)_", "_(请选择项目)_"
+        return "", [], "_(请选择项目)_", "_(请选择项目)_"
     path = _project_path_map().get(name, "")
-    with _WRITE_LOCK:
-        proj_html = _render_project(name)
+    proj_items = _project_items(name)
     analysis_md = _render_analysis(name)
     code_md = _render_code_analysis(name)
-    return path, proj_html, analysis_md, code_md
+    return path, proj_items, analysis_md, code_md
 
 
 def _render_code_analysis(name: str) -> str:
@@ -910,21 +881,20 @@ def _load_on_open():
     """界面加载时初始化全局项目选择器 + 路径 + 三 Tab 视图。
 
     默认优先选中一个已做代码分析的项目(以便加载即展示报告);否则退回全集第一个。
-    输出顺序:(g_project, g_path, proj_view, analysis_view, wb_code_view)。
+    输出顺序:(g_project, g_path, proj_items_state, analysis_view, wb_code_view)。
     """
     all_projects = _all_projects()
     if not all_projects:
-        empty = "<div class='panel-card'><p class='dim-empty'>暂无项目</p></div>"
         return (gr.update(choices=[], value=None), "",
-                empty,
+                [],
                 "_(暂无项目。在上方路径框填目录后点「深度分析」或「分析 / 更新」,"
                 "或去「项目进度追踪」页导入对话日志。)_",
                 "_(暂无代码深度分析)_")
     analyzed = list_code_analyzed()
     default = analyzed[0] if analyzed else all_projects[0]
-    path, proj_html, analysis_md, code_md = on_switch_project(default)
+    path, proj_items, analysis_md, code_md = on_switch_project(default)
     return (gr.update(choices=all_projects, value=default), path,
-            proj_html, analysis_md, code_md)
+            proj_items, analysis_md, code_md)
 
 
 def on_project_send(message: str, history: list, project_id: str):
@@ -1077,19 +1047,75 @@ def build_ui() -> gr.Blocks:
                                                   value=False, scale=2)
                     import_btn = gr.Button("导入并分析当前项目", variant="primary", scale=1)
                     proj_refresh = gr.Button("刷新展示", scale=1)
+                proj_max_mb = gr.Slider(
+                    minimum=0, maximum=100, step=5, value=0,
+                    label="全量重跑范围:只读最近 N MB 对话(0 = 全部;仅全量重跑生效)")
                 proj_status = gr.HTML(_status_bar("idle"))
-                proj_view = gr.HTML(
-                    "<div class='panel-card'><p class='dim-empty'>"
-                    "在顶部选择项目后点「导入并分析当前项目」</p></div>")
+                proj_items_state = gr.State([])
 
-                def _refresh_project(pid):
-                    with _WRITE_LOCK:
-                        return _render_project(pid)
+                @gr.render(inputs=[g_project, proj_items_state])
+                def _render_proj_panel(pid, items):
+                    if not pid or not str(pid).strip():
+                        gr.HTML("<div class='panel-card'><p class='dim-empty'>"
+                                "在顶部选择项目后点「导入并分析当前项目」</p></div>")
+                        return
+                    pid = str(pid).strip()
+                    grouped = {}
+                    for it in items:
+                        grouped.setdefault(it["dimension"], []).append(it)
+                    gr.Markdown(f"### {pid} · 进度追踪")
+                    with gr.Row():
+                        for dim, label in PROJECT_DIMENSION_LABELS.items():
+                            rows = grouped.get(dim, [])
+                            with gr.Column():
+                                gr.Markdown(f"**{_DIM_BADGE[dim]} {label}** · {len(rows)}")
+                                for it in rows:
+                                    text, locked = it["text"], it.get("locked")
+                                    src = it.get("source") == "manual"
+                                    prefix = ("🔒 " if locked else "") + ("✎ " if src else "")
+                                    with gr.Group():
+                                        gr.Markdown(f"{prefix}{text}  ·  {it['importance']:.0f}")
+                                        with gr.Row():
+                                            lock_btn = gr.Button(
+                                                "解锁" if locked else "锁定", size="sm")
+                                            del_btn = gr.Button("删除", size="sm")
 
-                import_btn.click(on_import_project, [g_project, proj_full_rerun],
-                                 [proj_status, proj_view], show_progress="hidden")
-                proj_refresh.click(_refresh_project, g_project, proj_view,
-                                   show_progress="hidden")
+                                            def _toggle_lock(pid=pid, dim=dim, text=text,
+                                                             locked=locked):
+                                                with _WRITE_LOCK:
+                                                    get_project_store().set_locked(
+                                                        pid, dim, text, not locked)
+                                                return _project_items(pid)
+
+                                            def _delete(pid=pid, dim=dim, text=text):
+                                                with _WRITE_LOCK:
+                                                    get_project_store().delete_item(
+                                                        pid, dim, text)
+                                                return _project_items(pid)
+
+                                            lock_btn.click(_toggle_lock, None, proj_items_state,
+                                                           show_progress="hidden")
+                                            del_btn.click(_delete, None, proj_items_state,
+                                                          show_progress="hidden")
+                                with gr.Row():
+                                    add_tb = gr.Textbox(show_label=False, scale=3,
+                                                        placeholder=f"手动添加到「{label}」…")
+                                    add_btn = gr.Button("+ 添加", size="sm", scale=1)
+
+                                    def _add(text, pid=pid, dim=dim):
+                                        with _WRITE_LOCK:
+                                            get_project_store().add_item(pid, dim, text)
+                                        return _project_items(pid), ""
+
+                                    add_btn.click(_add, add_tb,
+                                                  [proj_items_state, add_tb],
+                                                  show_progress="hidden")
+
+                import_btn.click(on_import_project,
+                                 [g_project, proj_full_rerun, proj_max_mb],
+                                 [proj_status, proj_items_state], show_progress="hidden")
+                proj_refresh.click(lambda pid: _project_items(pid), g_project,
+                                   proj_items_state, show_progress="hidden")
 
             with gr.Tab("🗂 项目结构分析"):
                 gr.Markdown("扫描**当前项目目录**结构并让 LLM 归纳出"
@@ -1130,7 +1156,7 @@ def build_ui() -> gr.Blocks:
         # 全局项目切换 → 同步刷新进度/结构/工作台三视图 + 回填路径。
         # 纯读事件用 show_progress="hidden":不给面板盖 spinner/半透明遮罩
         #(否则某些 Gradio 版本收尾不清除,面板会一直淡出灰掉)。
-        _switch_outputs = [g_path, proj_view, analysis_view, wb_code_view]
+        _switch_outputs = [g_path, proj_items_state, analysis_view, wb_code_view]
         g_project.change(on_switch_project, g_project, _switch_outputs,
                          show_progress="hidden")
         g_refresh.click(lambda: gr.update(choices=_all_projects()), None, g_project,
@@ -1138,7 +1164,7 @@ def build_ui() -> gr.Blocks:
 
         # 打开界面:初始化全局选择器 + 路径 + 三视图(纯读,不显示遮罩)。
         demo.load(_load_on_open, None,
-                  [g_project, g_path, proj_view, analysis_view, wb_code_view],
+                  [g_project, g_path, proj_items_state, analysis_view, wb_code_view],
                   show_progress="hidden")
     return demo
 

@@ -52,3 +52,16 @@ Conda 环境:**mem0**(Python 3.11.15)
 - MCP server 永不构造 MemoryStore(test_mcp_server 用 monkeypatch 强制断言)。
 - 本 Gradio 版本 gr.Chatbot 不接受 type= 参数(默认已兼容 message-dict)。
 - mcp>=1.2.0 已加入 requirements 并 pip 装入 mem0 环境(实装 1.28.1)。
+
+## 项目条目管理(2026-07-20 开始,SDD)
+计划:docs/superpowers/plans/2026-07-20-project-item-management.md
+分支:main;起始 HEAD: deb2d95
+7 任务:ProfileItem 加 locked/source → replace_profile 透传 → ProjectStore set_locked/add_item → track_from_dialog 保护锁定 → 提示词聚焦 → UI @gr.render 重构 → E2E。
+Task 1: complete (commits deb2d95..5000370, review clean)
+Task 2: complete (commits 5000370..3ae1b26, review clean)
+Task 3: complete (commits 3ae1b26..86082f6, review clean; minors: add_item return-annotation cosmetic, set_locked loops-all intentional)
+Task 4: complete (commits 86082f6..1d144e4, review clean; deviation: 按维度替换替代 exact-text keying, adjudicated correct. minor: bare subscript style)
+Task 5: complete (commit 8be53e6, review clean; minor: 12/20 substring assertion loose)
+Task 6: complete (commits 8be53e6..3d3e6e6, review Approved; agent cut off mid-task, controller finished: demo.load state wiring + removed _render_project + fixed pre-existing _render_analysis NameError; minor _WRITE_LOCK on mutations fixed in 3d3e6e6)
+Task 7: complete (183 tests pass; E2E lock-survival PASS via mock-LLM full-rerun on temp store; git clean). Push deferred pending user consent. In-browser visual walkthrough left to user.
+Task 7: + final-review Minor#1 fixed (note→status-bar detail) in 3c65c26

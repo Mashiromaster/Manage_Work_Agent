@@ -78,6 +78,8 @@ class ProfileStore:
                 last_seen=now.isoformat(),
                 mention_count=int(d.get("mention_count", 1)),
                 evidence=str(d.get("evidence", "")),
+                locked=bool(d.get("locked", False)),
+                source=str(d.get("source", "llm")),
             ))
         profile = UserProfile(user_id=user_id, items=items)
         self._save(profile)
@@ -146,4 +148,42 @@ class ProjectStore(ProfileStore):
         for item in profile.items:
             item.forgotten = False
         profile.items.sort(key=lambda i: i.importance, reverse=True)
+        return profile
+
+    def set_locked(self, project_id: str, dimension: str, text: str,
+                   locked: bool) -> bool:
+        """按 (dimension, text) 定位条目并置锁定态;找不到返回 False。"""
+        profile = self._load(project_id)
+        hit = False
+        for it in profile.items:
+            if it.dimension == dimension and it.text == text:
+                it.locked = bool(locked)
+                hit = True
+        if hit:
+            self._save(profile)
+        return hit
+
+    def add_item(self, project_id: str, dimension: str, text: str,
+                 importance: float = 6):
+        """手动添加一条 (source=manual, locked=True) 的条目并写盘。
+
+        text 去空白后为空则忽略;同 (dimension, text) 已存在则就地标记为
+        manual+locked(不重复追加)。返回写盘后的 UserProfile。
+        """
+        clean = (text or "").strip()
+        profile = self._load(project_id)
+        if not clean:
+            return profile
+        for it in profile.items:
+            if it.dimension == dimension and it.text == clean:
+                it.source = "manual"
+                it.locked = True
+                self._save(profile)
+                return profile
+        now = datetime.now().isoformat()
+        profile.items.append(ProfileItem(
+            text=clean, dimension=dimension, importance=float(importance),
+            created_at=now, last_seen=now, mention_count=1,
+            source="manual", locked=True))
+        self._save(profile)
         return profile

@@ -29,6 +29,8 @@ class ProfileItem:
     mention_count: int = 1
     forgotten: bool = False
     evidence: str = ""  # 支撑该画像条目的原始记忆引用
+    locked: bool = False   # 用户锁定:重导入不覆盖
+    source: str = "llm"    # "llm" 提炼产出 / "manual" 手动添加
 
     def to_dict(self) -> dict:
         return {
@@ -36,6 +38,7 @@ class ProfileItem:
             "importance": self.importance, "created_at": self.created_at,
             "last_seen": self.last_seen, "mention_count": self.mention_count,
             "forgotten": self.forgotten, "evidence": self.evidence,
+            "locked": self.locked, "source": self.source,
         }
 
     @classmethod
@@ -45,6 +48,7 @@ class ProfileItem:
             created_at=d["created_at"], last_seen=d["last_seen"],
             mention_count=d.get("mention_count", 1), forgotten=d.get("forgotten", False),
             evidence=d.get("evidence", ""),
+            locked=d.get("locked", False), source=d.get("source", "llm"),
         )
 
 

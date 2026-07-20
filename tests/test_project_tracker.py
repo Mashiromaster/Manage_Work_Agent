@@ -211,3 +211,104 @@ def test_dialog_write_lock_held_only_around_write(mock_ext, mock_collect):
     assert events.index("extract") < events.index("lock")
     assert events.index("lock") < events.index("write") < events.index("unlock")
 
+
+@patch("memory_framework.project_tracker.collect_new_messages",
+       return_value=([{"role": "user", "content": "hi"}], {"s.jsonl": ["k"]}))
+@patch("memory_framework.project_tracker.extract_dims_from_messages")
+def test_locked_item_survives_incremental(mock_ext, mock_collect):
+    from memory_framework.project_tracker import track_from_dialog
+    mock_ext.return_value = [{"dimension": "progress", "text": "新提炼", "importance": 7}]
+    ps = FakeDialogStore(existing=[
+        {"dimension": "todo", "text": "锁定待办", "importance": 5, "locked": True},
+        {"dimension": "progress", "text": "旧未锁", "importance": 4, "locked": False},
+    ])
+    with _patches():
+        track_from_dialog(ps, "X", "p", model="test/m", incremental=True)
+    texts = {i["text"] for i in ps.replaced}
+    assert "锁定待办" in texts       # 锁定保留
+    assert "新提炼" in texts         # 新提炼进入
+    assert "旧未锁" not in texts     # 旧未锁被替换掉
+
+
+@patch("memory_framework.project_tracker.parse_cc_session",
+       return_value=[{"role": "user", "content": "全文"}])
+@patch("memory_framework.project_tracker.collect_new_messages",
+       return_value=([], {"s.jsonl": ["k1"]}))
+@patch("memory_framework.project_tracker.extract_dims_from_messages")
+def test_manual_and_locked_survive_full_rerun(mock_ext, mock_collect, mock_parse):
+    from memory_framework.project_tracker import track_from_dialog
+    mock_ext.return_value = [{"dimension": "progress", "text": "重提", "importance": 7}]
+    ps = FakeDialogStore(existing=[
+        {"dimension": "todo", "text": "手动项", "importance": 6, "source": "manual"},
+        {"dimension": "progress", "text": "锁定项", "importance": 8, "locked": True},
+        {"dimension": "blocker", "text": "旧未锁", "importance": 3},
+    ])
+    with _patches():
+        track_from_dialog(ps, "X", "p", model="test/m", incremental=False)
+    texts = {i["text"] for i in ps.replaced}
+    assert "手动项" in texts and "锁定项" in texts   # 全量重跑也保留
+    assert "重提" in texts                          # 新提炼进入
+    assert "旧未锁" not in texts                     # 未锁定的旧 llm 被清
+
+
+@patch("memory_framework.project_tracker.collect_new_messages",
+       return_value=([{"role": "user", "content": "hi"}], {"s.jsonl": ["k"]}))
+@patch("memory_framework.project_tracker.extract_dims_from_messages")
+def test_fresh_dropped_when_collides_with_locked(mock_ext, mock_collect):
+    from memory_framework.project_tracker import track_from_dialog
+    # LLM 又产出了和锁定条目同文本的项:应以锁定版本为准,不重复
+    mock_ext.return_value = [{"dimension": "todo", "text": "锁定待办", "importance": 9}]
+    ps = FakeDialogStore(existing=[
+        {"dimension": "todo", "text": "锁定待办", "importance": 5, "locked": True}])
+    with _patches():
+        track_from_dialog(ps, "X", "p", model="test/m", incremental=True)
+    todos = [i for i in ps.replaced if i["text"] == "锁定待办"]
+    assert len(todos) == 1 and todos[0]["locked"] is True
+    assert todos[0]["importance"] == 5   # 保留锁定版本(未被 fresh 的 9 覆盖)
+
+
+
+def test_read_messages_max_mb_picks_recent(tmp_path):
+    """max_mb>0 时只读最近的会话文件累计到上限;至少读入最近一个。"""
+    import os
+    from memory_framework import project_tracker as pt
+
+    old = tmp_path / "old.jsonl"
+    mid = tmp_path / "mid.jsonl"
+    new = tmp_path / "new.jsonl"
+    for f in (old, mid, new):
+        f.write_bytes(b"x" * (600 * 1024))  # 各 ~0.6MB
+    # 设 mtime:old < mid < new
+    os.utime(old, (1000, 1000))
+    os.utime(mid, (2000, 2000))
+    os.utime(new, (3000, 3000))
+
+    seen = []
+
+    def fake_parse(path):
+        seen.append(os.path.basename(path))
+        return [{"role": "user", "content": "hi"}]
+
+    project = {"sessions": [str(old), str(mid), str(new)]}
+    with patch.object(pt, "parse_cc_session", side_effect=fake_parse):
+        pt._read_project_messages(project, max_mb=1)  # ~1MB → 只容得下最近一个多一点
+
+    # 最近的 new 必读;old 最旧应被排除
+    assert "new.jsonl" in seen
+    assert "old.jsonl" not in seen
+
+
+def test_read_messages_zero_mb_reads_all(tmp_path):
+    """max_mb=0(默认)读全部会话。"""
+    import os
+    from memory_framework import project_tracker as pt
+
+    a = tmp_path / "a.jsonl"
+    b = tmp_path / "b.jsonl"
+    for f in (a, b):
+        f.write_bytes(b"x" * 1024)
+    seen = []
+    with patch.object(pt, "parse_cc_session",
+                      side_effect=lambda p: seen.append(os.path.basename(p)) or []):
+        pt._read_project_messages({"sessions": [str(a), str(b)]}, max_mb=0)
+    assert set(seen) == {"a.jsonl", "b.jsonl"}
